@@ -1,0 +1,118 @@
+# mwan3 Configuration for Bakhmach-Business-Hub
+# Dual-WAN failover: Primary (ETH0/ISP) + Backup (USB0/LTE Modem)
+# Operators: Kyivstar/Vodafone Ukraine + USB Modem Backup
+# Purpose: Energy monitoring, IoT data sync, Prometheus metrics
+
+# === NETWORK INTERFACES ===
+config interface 'Primary_WAN'
+	option ifname 'eth0'
+	option proto 'dhcp'
+	option metric '10'
+
+
+config interface 'Backup_LTE'
+	option ifname 'usb0'
+	option proto 'dhcp'
+	option metric '20'
+
+# === MWAN3 INTERFACES ===
+config mwan3	option enabled '1'
+
+config mwan3_interface 'Primary_WAN'
+	option enabled '1'
+	option initial_state 'online'
+	option reliability '90'
+	option count '3'
+	option timeout '2000'
+	option interval '5'
+	option down '3'
+	option up '2'
+
+config mwan3_interface 'Backup_LTE'
+	option enabled '1'
+	option initial_state 'online'
+	option reliability '75'
+	option count '3'
+	option timeout '3000'
+	option interval '10'
+	option down '5'
+	option up '3'
+
+# === MWAN3 MEMBERS ===
+config mwan3_member 'Primary_WAN_0'
+	option interface 'Primary_WAN'
+	option metric '10'
+	option weight '3'
+
+config mwan3_member 'Backup_LTE_0'
+	option interface 'Backup_LTE'
+	option metric '20'
+	option weight '1'
+
+# === MWAN3 POLICIES ===
+config mwan3_policy 'LoadBalance_Default'
+	list members 'Primary_WAN_0'
+	list members 'Backup_LTE_0'
+
+config mwan3_policy 'Primary_Only'
+	list members 'Primary_WAN_0'
+
+config mwan3_policy 'Backup_Only'
+	list members 'Backup_LTE_0'
+
+config mwan3_policy 'Management'
+	list members 'Primary_WAN_0'
+	list members 'Backup_LTE_0'
+
+# === MWAN3 RULES ===
+config mwan3_rule 'SSH_Management'
+	option inbound 'lan'
+	option dest_port '22'
+	option proto 'tcp'
+	option policy 'Primary_Only'
+
+config mwan3_rule 'Prometheus_Metrics'
+	option inbound 'lan'
+	option dest_port '9090'
+	option proto 'tcp'
+	option policy 'Management'
+
+config mwan3_rule 'IoT_HTTPS'
+	option inbound 'lan'
+	option dest_port '443'
+	option proto 'tcp'
+	option policy 'LoadBalance_Default'
+
+config mwan3_rule 'HTTP_Traffic'
+	option inbound 'lan'
+	option dest_port '80'
+	option proto 'tcp'
+	option policy 'LoadBalance_Default'
+
+config mwan3_rule 'DNS_Queries'
+	option inbound 'lan'
+	option dest_port '53'
+	option proto 'udp'
+	option policy 'LoadBalance_Default'
+
+config mwan3_rule 'NTP_Time'
+	option inbound 'lan'
+	option dest_port '123'
+	option proto 'udp'
+	option policy 'Primary_Only'
+
+config mwan3_rule 'Default_Rule'
+	option policy 'LoadBalance_Default'
+
+# === CRITICAL CONFIGURATION ===
+# Interfaces: eth0 (primary) + usb0 (LTE backup)
+# Failover time: ~15 seconds (3 failures * 5s interval)
+# Load balance ratio: 3:1 (primary:backup)
+# SIM operators: Kyivstar/Vodafone Ukraine
+# APN: internet.kyivstar.ua / internet.vodafone.ua
+#
+# Installation:
+# opkg update && opkg install mwan3 mwan3luci
+# /etc/init.d/mwan3 enable
+# /etc/init.d/mwan3 start
+# mwan3 status
