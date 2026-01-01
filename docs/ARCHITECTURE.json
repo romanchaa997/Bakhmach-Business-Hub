@@ -1,0 +1,284 @@
+{
+  "metadata": {
+    "name": "Bakhmach Business Hub",
+    "version": "1.0.0",
+    "description": "Integrated Platform Cooperative for code optimization, ML pipelines, production services & personal development",
+    "lastUpdated": "2025-12-06",
+    "contributors": ["romanchaa997"]
+  },
+  "layers": {
+    "presentation": {
+      "name": "Presentation Layer",
+      "description": "User-facing interfaces and visualization channels",
+      "channels": [
+        {
+          "id": "web_view",
+          "name": "Web Application",
+          "technology": "React/TypeScript",
+          "purpose": "Primary web interface for users"
+        },
+        {
+          "id": "xr_view",
+          "name": "XR/3D Visualization",
+          "technology": "Three.js/Babylon.js",
+          "purpose": "Immersive 3D experience and spatial visualization"
+        },
+        {
+          "id": "mobile_view",
+          "name": "Mobile Application",
+          "technology": "React Native/Flutter",
+          "purpose": "Mobile-optimized interface"
+        }
+      ]
+    },
+    "application": {
+      "name": "Application Layer",
+      "description": "Core business logic and services",
+      "services": [
+        {
+          "id": "auth_service",
+          "name": "Authentication Service",
+          "file": "backend/authService.ts",
+          "responsibilities": ["User registration", "Login", "Token management"],
+          "dependencies": ["Database", "JWT"]
+        },
+        {
+          "id": "pdp_service",
+          "name": "Personal Development Plan Service",
+          "file": "backend/",
+          "responsibilities": ["Create/Read/Update PDPs", "Track progress", "Generate insights"],
+          "dependencies": ["Database", "Analytics"]
+        },
+        {
+          "id": "goal_service",
+          "name": "Goal Management Service",
+          "file": "backend/",
+          "responsibilities": ["Goal CRUD", "Goal tracking", "Milestone management"],
+          "dependencies": ["Database", "PDPService"]
+        },
+        {
+          "id": "task_service",
+          "name": "Task Service",
+          "file": "backend/",
+          "responsibilities": ["Task management", "Task assignment", "Progress tracking"],
+          "dependencies": ["Database", "GoalService"]
+        },
+        {
+          "id": "analytics_service",
+          "name": "Analytics Service",
+          "file": "backend/",
+          "responsibilities": ["Data analysis", "Report generation", "Insights"],
+          "dependencies": ["Database", "ML Pipeline"]
+        },
+        {
+          "id": "consciousness_service",
+          "name": "Consciousness & Awareness Service",
+          "file": "consciousness/",
+          "responsibilities": ["Self-awareness tracking", "Emotional intelligence analysis", "Growth metrics"],
+          "dependencies": ["Analytics", "ML Pipeline"]
+        },
+        {
+          "id": "coordinator_service",
+          "name": "Platform Coordinator Service",
+          "file": "coordinator/",
+          "responsibilities": ["Service orchestration", "Workflow management", "Event handling"],
+          "dependencies": ["All services"]
+        }
+      ]
+    },
+    "data": {
+      "name": "Data Layer",
+      "description": "Data persistence and retrieval",
+      "databases": [
+        {
+          "id": "postgresql",
+          "name": "PostgreSQL",
+          "purpose": "Relational data storage",
+          "schema": "backend/schema.sql",
+          "tables": ["users", "pdps", "goals", "tasks", "analytics", "logs"]
+        },
+        {
+          "id": "redis",
+          "name": "Redis Cache",
+          "purpose": "Session management and caching",
+          "use_cases": ["Session storage", "Rate limiting", "Cache layer"]
+        }
+      ]
+    },
+    "infrastructure": {
+      "name": "Infrastructure Layer",
+      "description": "DevOps, deployment, and monitoring",
+      "components": [
+        {
+          "id": "ci_cd",
+          "name": "CI/CD Pipeline",
+          "technology": "GitHub Actions",
+          "file": ".github/workflows",
+          "purpose": "Automated testing and deployment"
+        },
+        {
+          "id": "docker",
+          "name": "Containerization",
+          "technology": "Docker",
+          "purpose": "Container orchestration"
+        },
+        {
+          "id": "monitoring",
+          "name": "Monitoring & Logging",
+          "technology": "Prometheus/ELK",
+          "purpose": "System health monitoring"
+        }
+      ]
+    }
+  },
+  "nodes": {
+    "frontend": {
+      "id": "frontend_node",
+      "type": "presentation",
+      "name": "Frontend Application",
+      "technology_stack": ["React", "TypeScript", "TailwindCSS"],
+      "responsibilities": ["User interface", "State management", "API communication"]
+    },
+    "backend": {
+      "id": "backend_node",
+      "type": "application",
+      "name": "Backend API Server",
+      "technology_stack": ["Node.js", "Express.js", "TypeScript"],
+      "port": 3001,
+      "endpoints_base": "/api/v1",
+      "responsibilities": ["API endpoints", "Business logic", "Authentication"]
+    },
+    "database": {
+      "id": "database_node",
+      "type": "data",
+      "name": "Data Repository",
+      "technology_stack": ["PostgreSQL", "Redis"],
+      "responsibilities": ["Data persistence", "Caching", "Query optimization"]
+    },
+    "ml_pipeline": {
+      "id": "ml_node",
+      "type": "application",
+      "name": "ML/AI Pipeline",
+      "technology_stack": ["Python", "TensorFlow", "PyTorch"],
+      "responsibilities": ["Model training", "Predictions", "Insights generation"]
+    },
+    "consciousness_module": {
+      "id": "consciousness_node",
+      "type": "application",
+      "name": "Consciousness & Awareness Module",
+      "technology_stack": ["TypeScript", "Python"],
+      "responsibilities": ["Self-reflection", "Emotional tracking", "Growth analysis"]
+    }
+  },
+  "edges": [
+    {
+      "from": "frontend_node",
+      "to": "backend_node",
+      "type": "HTTP/REST",
+      "protocol": "HTTPS",
+      "authentication": "JWT Token"
+    },
+    {
+      "from": "backend_node",
+      "to": "database_node",
+      "type": "Database Connection",
+      "protocol": "PostgreSQL Wire Protocol",
+      "authentication": "Database credentials"
+    },
+    {
+      "from": "backend_node",
+      "to": "ml_node",
+      "type": "API Call / Message Queue",
+      "protocol": "REST/WebSocket",
+      "purpose": "Send data for analysis"
+    },
+    {
+      "from": "ml_node",
+      "to": "database_node",
+      "type": "Data Pipeline",
+      "protocol": "Database Connection",
+      "purpose": "Store results and models"
+    },
+    {
+      "from": "consciousness_node",
+      "to": "backend_node",
+      "type": "Service Integration",
+      "protocol": "REST API",
+      "purpose": "Share insights"
+    },
+    {
+      "from": "consciousness_node",
+      "to": "database_node",
+      "type": "Data Access",
+      "protocol": "Database Connection",
+      "purpose": "Read/write awareness data"
+    }
+  ],
+  "useCases": {
+    "web_channel": [
+      "User registration and login",
+      "Personal Development Plan creation and tracking",
+      "Goal management and monitoring",
+      "Task assignment and execution",
+      "Analytics dashboard viewing",
+      "Community engagement",
+      "Document and resource access"
+    ],
+    "xr_channel": [
+      "3D architecture visualization",
+      "Immersive goal tracking",
+      "Spatial task management",
+      "Virtual team collaboration",
+      "3D presentation of analytics",
+      "Augmented reality features"
+    ],
+    "pdf_channel": [
+      "Report generation and export",
+      "Document sharing",
+      "Offline access to data",
+      "Professional documentation",
+      "Archived analytics"
+    ],
+    "api_channel": [
+      "Third-party integrations",
+      "Mobile application support",
+      "Data synchronization",
+      "External system communication"
+    ]
+  },
+  "useCase_channel_matrix": {
+    "user_registration": {"web": true, "xr": false, "pdf": false, "api": true},
+    "goal_tracking": {"web": true, "xr": true, "pdf": true, "api": true},
+    "task_management": {"web": true, "xr": true, "pdf": true, "api": true},
+    "analytics_view": {"web": true, "xr": true, "pdf": true, "api": false},
+    "report_generation": {"web": true, "xr": false, "pdf": true, "api": false},
+    "community_collaboration": {"web": true, "xr": true, "pdf": false, "api": true},
+    "consciousness_tracking": {"web": true, "xr": true, "pdf": true, "api": true}
+  },
+  "keyDomains": [
+    "Personal Development",
+    "Goal Achievement",
+    "Task Management",
+    "Analytics & Insights",
+    "Community & Collaboration",
+    "Consciousness & Awareness",
+    "Code Optimization",
+    "ML Pipeline Management"
+  ],
+  "deployment": {
+    "environments": ["development", "staging", "production"],
+    "containerization": "Docker",
+    "orchestration": "Kubernetes",
+    "cicd_provider": "GitHub Actions",
+    "monitoring": ["Prometheus", "Grafana", "ELK Stack"]
+  },
+  "security": {
+    "authentication": "JWT Tokens",
+    "authorization": "Role-based access control (RBAC)",
+    "encryption": "TLS/HTTPS",
+    "database_security": "Parameterized queries",
+    "password_hashing": "bcrypt",
+    "cors": "Configured whitelist",
+    "helmet": "HTTP security headers"
+  }
+}
