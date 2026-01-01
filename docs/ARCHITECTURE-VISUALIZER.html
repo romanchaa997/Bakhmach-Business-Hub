@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bakhmach Business Hub - Architecture Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 300px;
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 2px solid rgba(255,255,255,0.1);
+        }
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: rgba(0,0,0,0.2);
+            padding: 20px;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+        }
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        .header p {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        #cy {
+            flex: 1;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        }
+        .info-section {
+            margin-bottom: 20px;
+        }
+        .info-section h3 {
+            font-size: 14px;
+            color: #4da6ff;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 5px;
+        }
+        .info-item {
+            font-size: 12px;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-left: 2px solid #4da6ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .info-item:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateX(5px);
+        }
+        .legend {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 11px;
+            margin-top: 20px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .node {
+            width: 60px;
+            height: 60px;
+            content: data(id);
+            background-color: data(bgColor);
+            border-width: 2px;
+            border-color: data(borderColor);
+            text-valign: center;
+            text-halign: center;
+            font-size: 11px;
+            color: #fff;
+        }
+        .edge {
+            line-color: data(lineColor);
+            target-arrow-color: data(lineColor);
+            target-arrow-shape: triangle;
+            width: 2px;
+            arrow-scale: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2 style="margin-bottom: 15px; font-size: 16px;">Architecture</h2>
+            
+            <div class="info-section">
+                <h3>Layers</h3>
+                <div class="info-item">Presentation</div>
+                <div class="info-item">Application</div>
+                <div class="info-item">Data</div>
+                <div class="info-item">Infrastructure</div>
+            </div>
+            
+            <div class="info-section">
+                <h3>Components</h3>
+                <div class="info-item">Frontend App</div>
+                <div class="info-item">Backend API</div>
+                <div class="info-item">Database</div>
+                <div class="info-item">ML Pipeline</div>
+                <div class="info-item">Consciousness</div>
+            </div>
+            
+            <div class="info-section">
+                <h3>Channels</h3>
+                <div class="info-item">Web</div>
+                <div class="info-item">XR/3D</div>
+                <div class="info-item">Mobile</div>
+                <div class="info-item">API</div>
+            </div>
+            
+            <div class="info-section">
+                <h3>Legend</h3>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #4da6ff;"></div>
+                        <span>Frontend</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #66bb6a;"></div>
+                        <span>Backend</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f57c00;"></div>
+                        <span>Data</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ab47bc;"></div>
+                        <span>ML/AI</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ec407a;"></div>
+                        <span>Consciousness</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main">
+            <div class="header">
+                <h1>🎉 Bakhmach Business Hub - Architecture Visualizer</h1>
+                <p>Interactive visualization of integrated platform architecture for personal development, goal achievement, and consciousness growth</p>
+            </div>
+            <div id="cy"></div>
+        </div>
+    </div>
+    
+    <script>
+        const cy = cytoscape({
+            container: document.getElementById('cy'),
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': '#4da6ff',
+                        'label': 'data(label)',
+                        'width': 80,
+                        'height': 80,
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'font-size': 12,
+                        'color': '#fff',
+                        'border-width': 2,
+                        'border-color': '#fff',
+                        'padding': 10
+                    }
+                },
+                {
+                    selector: 'node[type="frontend"]',
+                    style: { 'background-color': '#4da6ff' }
+                },
+                {
+                    selector: 'node[type="backend"]',
+                    style: { 'background-color': '#66bb6a' }
+                },
+                {
+                    selector: 'node[type="data"]',
+                    style: { 'background-color': '#f57c00' }
+                },
+                {
+                    selector: 'node[type="ml"]',
+                    style: { 'background-color': '#ab47bc' }
+                },
+                {
+                    selector: 'node[type="consciousness"]',
+                    style: { 'background-color': '#ec407a' }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'line-color': 'rgba(255,255,255,0.3)',
+                        'target-arrow-color': 'rgba(255,255,255,0.5)',
+                        'target-arrow-shape': 'triangle',
+                        'width': 2,
+                        'arrow-scale': 1,
+                        'label': 'data(label)',
+                        'font-size': 10,
+                        'color': 'rgba(255,255,255,0.6)'
+                    }
+                }
+            ],
+            elements: [
+                // Nodes
+                { data: { id: 'frontend', label: 'Frontend\n(React+TS)', type: 'frontend' } },
+                { data: { id: 'backend', label: 'Backend\n(Node.js)', type: 'backend' } },
+                { data: { id: 'database', label: 'Database\n(PostgreSQL)', type: 'data' } },
+                { data: { id: 'ml', label: 'ML Pipeline\n(Python)', type: 'ml' } },
+                { data: { id: 'consciousness', label: 'Consciousness\nModule', type: 'consciousness' } },
+                
+                // Edges
+                { data: { source: 'frontend', target: 'backend', label: 'REST API' } },
+                { data: { source: 'backend', target: 'database', label: 'SQL' } },
+                { data: { source: 'backend', target: 'ml', label: 'Data Pipeline' } },
+                { data: { source: 'ml', target: 'database', label: 'Results' } },
+                { data: { source: 'consciousness', target: 'backend', label: 'Insights' } },
+                { data: { source: 'consciousness', target: 'database', label: 'Awareness Data' } }
+            ],
+            layout: {
+                name: 'cose',
+                directed: true,
+                animate: true,
+                animationDuration: 1000,
+                avoidOverlap: true,
+                nodeSpacing: 30
+            }
+        });
+        
+        // Fit to window on load
+        cy.fit();
+        
+        // Responsive resize
+        window.addEventListener('resize', () => cy.fit());
+    </script>
+</body>
+</html>
