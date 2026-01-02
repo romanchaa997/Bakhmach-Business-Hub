@@ -1,0 +1,134 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9, '3.10']
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Lint with flake8
+        run: |
+          flake8 services/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 services/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
+      
+      - name: Type check with mypy
+        run: |
+          mypy services/ --ignore-missing-imports
+      
+      - name: Run tests
+        run: |
+          pytest tests/ -v --cov=services --cov-report=xml --cov-report=html
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost/test_db
+          REDIS_URL: redis://localhost:6379/0
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+  
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run Bandit security check
+        run: |
+          pip install bandit
+          bandit -r services/ -f json -o bandit-report.json || true
+      
+      - name: Upload security report
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit-report
+          path: bandit-report.json
+  
+  build:
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          tags: bakhmach:latest
+  
+  deploy-staging:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment"
+          echo "Would run: kubectl apply -f k8s/staging/ --kubeconfig=$KUBECONFIG"
+        env:
+          KUBECONFIG: ${{ secrets.STAGING_KUBECONFIG }}
+  
+  deploy-production:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production environment"
+          echo "Would run: kubectl apply -f k8s/production/ --kubeconfig=$KUBECONFIG"
+        env:
+          KUBECONFIG: ${{ secrets.PROD_KUBECONFIG }}
