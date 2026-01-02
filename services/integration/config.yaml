@@ -1,0 +1,287 @@
+# AI Studio & GitHub Integration Service Configuration
+# Bakhmach Business Hub - January 2, 2026
+
+app:
+  name: "AI Studio - GitHub Integration Service"
+  version: "1.0.0"
+  environment: "production"
+  debug: false
+  log_level: "INFO"
+
+# GitHub Configuration
+github:
+  # GitHub API Settings
+  api:
+    base_url: "https://api.github.com"
+    version: "2022-11-28"
+    timeout: 30
+    retry_attempts: 3
+    retry_delay: 5
+  
+  # Repository Configuration
+  repository:
+    owner: "romanchaa997"
+    name: "Bakhmach-Business-Hub"
+    branch: "main"
+  
+  # Webhook Configuration
+  webhooks:
+    enabled: true
+    events:
+      - "push"
+      - "pull_request"
+      - "workflow_run"
+    secret_key: "${GITHUB_WEBHOOK_SECRET}"
+  
+  # Authentication
+  auth:
+    token: "${GITHUB_TOKEN}"
+    token_type: "Bearer"
+    scopes:
+      - "repo"
+      - "workflow"
+      - "read:org"
+
+# Google AI Studio Configuration
+ai_studio:
+  # Google Cloud Settings
+  gcloud:
+    project_id: "bakhmach-gcp-project"
+    region: "us-central1"
+  
+  # AI Studio Project
+  project:
+    id: "180l9EYK6z8MwgRt1MBbZz34rFL7TkNUu"
+    name: "Augmented Architecture Visualizer"
+  
+  # Drive API (for accessing the AI Studio project)
+  drive:
+    api_version: "v3"
+    timeout: 30
+    max_results: 100
+  
+  # Storage
+  storage:
+    bucket: "bakhmach-ai-studio-exports"
+    path: "architecture-exports"
+  
+  # Authentication
+  auth:
+    service_account_key: "${GOOGLE_SERVICE_ACCOUNT_KEY}"
+    key_id: "${GOOGLE_KEY_ID}"
+    client_email: "${GOOGLE_CLIENT_EMAIL}"
+
+# Synchronization Settings
+sync:
+  # Sync Schedule
+  schedule:
+    github_to_ai: "0 */4 * * *"  # Every 4 hours
+    ai_to_github: "0 */6 * * *"  # Every 6 hours
+    bidirectional: "0 0 * * *"   # Daily at midnight
+  
+  # Sync Behavior
+  behavior:
+    conflict_resolution: "ai_studio_priority"  # AI Studio takes precedence
+    auto_commit: true
+    auto_pull_request: true
+    batch_size: 50
+    timeout: 300
+  
+  # Validation
+  validation:
+    enabled: true
+    rules:
+      - "component_id_unique"
+      - "version_format_valid"
+      - "required_fields_present"
+      - "technology_list_valid"
+  
+  # Retry Policy
+  retry:
+    max_attempts: 5
+    initial_delay: 60
+    max_delay: 3600
+    exponential_base: 2
+
+# Database Configuration
+database:
+  # PostgreSQL
+  postgres:
+    host: "${DB_HOST}"
+    port: 5432
+    database: "${DB_NAME}"
+    username: "${DB_USER}"
+    password: "${DB_PASSWORD}"
+    max_connections: 20
+    connection_timeout: 10
+  
+  # Data Retention
+  retention:
+    sync_records: 90  # days
+    error_logs: 30
+    audit_logs: 365
+
+# Message Queue Configuration (Celery + Redis)
+queue:
+  broker:
+    type: "redis"
+    host: "${REDIS_HOST}"
+    port: 6379
+    database: 0
+    password: "${REDIS_PASSWORD}"
+  
+  # Task Configuration
+  tasks:
+    timeout: 3600
+    soft_timeout: 3400
+    max_retries: 3
+    queue: "integration"
+
+# Monitoring & Logging
+monitoring:
+  # Datadog
+  datadog:
+    enabled: true
+    api_key: "${DATADOG_API_KEY}"
+    app_key: "${DATADOG_APP_KEY}"
+    service: "ai-studio-github-integration"
+    env: "production"
+  
+  # Metrics
+  metrics:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+  
+  # Logging
+  logging:
+    level: "INFO"
+    format: "json"
+    destination: "cloudlogging"
+    project_id: "${GCP_PROJECT_ID}"
+
+# API Endpoints
+api:
+  # Server
+  server:
+    host: "0.0.0.0"
+    port: 8000
+    workers: 4
+    timeout: 120
+  
+  # Endpoints
+  endpoints:
+    sync: "/api/v1/sync"
+    services: "/api/v1/services"
+    visualizations: "/api/v1/visualizations"
+    webhooks: "/api/v1/webhooks"
+    health: "/health"
+    metrics: "/metrics"
+  
+  # Rate Limiting
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+    burst_size: 10
+
+# Security Configuration
+security:
+  # CORS
+  cors:
+    enabled: true
+    allowed_origins:
+      - "https://github.com"
+      - "https://aistudio.google.com"
+      - "${APP_URL}"
+    allowed_methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+  
+  # TLS/SSL
+  tls:
+    enabled: true
+    cert_file: "/etc/ssl/certs/server.crt"
+    key_file: "/etc/ssl/private/server.key"
+  
+  # API Key
+  api_key:
+    required: true
+    header_name: "X-API-Key"
+    length: 32
+  
+  # JWT
+  jwt:
+    enabled: true
+    algorithm: "HS256"
+    expiration_hours: 24
+
+# Feature Flags
+features:
+  bidirectional_sync: true
+  automatic_conflict_resolution: true
+  webhook_integration: true
+  pull_request_creation: true
+  data_validation: true
+  metrics_collection: true
+  audit_logging: true
+
+# Notification Configuration
+notifications:
+  # Slack
+  slack:
+    enabled: true
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channel: "#integration-updates"
+  
+  # Email
+  email:
+    enabled: true
+    smtp_host: "${SMTP_HOST}"
+    smtp_port: 587
+    from_address: "integration@bakhmach.dev"
+    recipients:
+      - "team@bakhmach.dev"
+
+# Deployment Configuration
+deployment:
+  # Kubernetes
+  kubernetes:
+    enabled: true
+    namespace: "integration"
+    replicas: 3
+    image: "bakhmach/integration-service:latest"
+  
+  # Health Checks
+  health_check:
+    enabled: true
+    interval: 30
+    timeout: 10
+    unhealthy_threshold: 3
+
+---
+# Environment Variable Mappings
+# The following environment variables should be set:
+# 
+# GITHUB_TOKEN - GitHub API personal access token
+# GITHUB_WEBHOOK_SECRET - Secret for GitHub webhooks
+# GOOGLE_SERVICE_ACCOUNT_KEY - Google Cloud service account JSON key
+# GOOGLE_KEY_ID - Google Cloud key ID
+# GOOGLE_CLIENT_EMAIL - Google service account email
+# DB_HOST - PostgreSQL host
+# DB_NAME - PostgreSQL database name
+# DB_USER - PostgreSQL user
+# DB_PASSWORD - PostgreSQL password
+# REDIS_HOST - Redis host
+# REDIS_PASSWORD - Redis password (if auth enabled)
+# DATADOG_API_KEY - Datadog API key
+# DATADOG_APP_KEY - Datadog app key
+# GCP_PROJECT_ID - Google Cloud project ID
+# APP_URL - Application URL
+# SLACK_WEBHOOK_URL - Slack webhook URL
+# SMTP_HOST - SMTP server host
+
+# Version: 1.0.0
+# Last Updated: January 2, 2026
+# Owner: @romanchaa997
