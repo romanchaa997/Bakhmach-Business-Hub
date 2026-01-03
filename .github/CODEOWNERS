@@ -1,0 +1,31 @@
+# Code Owners for Bakhmach-Business-Hub
+# This file specifies who should review pull requests for different areas of the codebase
+
+# Default owners for everything in the repo
+* @romanchaa997
+
+# Backend services and APIs
+/backend/ @romanchaa997
+/services/ @romanchaa997
+services/** @romanchaa997
+
+# Frontend code
+/frontend/ @romanchaa997
+/code/ @romanchaa997
+
+# ML/AI related code
+/ml/ @romanchaa997
+
+# Configuration and infrastructure
+/.github/ @romanchaa997
+.editorconfig @romanchaa997
+.gitignore @romanchaa997
+dependencies/** @romanchaa997
+
+# Documentation
+/*.md @romanchaa997
+/docs/ @romanchaa997
+
+# Security and monitoring
+/security/ @romanchaa997
+/monitoring/ @romanchaa997
