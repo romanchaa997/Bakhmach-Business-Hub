@@ -1,0 +1,71 @@
+name = "bbbhhai-com"
+main = "src/index.ts"
+compatibility_date = "2025-01-03"
+workers_dev = true
+
+# Cloudflare Pages deployment
+[env.production]
+route = "bbbhhai.com/*"
+zone_id = "CLOUDFLARE_ZONE_ID"
+
+[env.staging]
+route = "staging.bbbhhai.com/*"
+zone_id = "CLOUDFLARE_STAGING_ZONE_ID"
+
+# Environment variables
+[env.production.vars]
+API_BASE_URL = "https://api.bakhmach-business-hub.com"
+AI_GATEWAY_URL = "https://gateway.ai.cloudflare.com/v1/openai/"
+TELEGRAM_BOT_TOKEN = "" # Set via GitHub Secrets
+GMAIL_CLIENT_ID = "" # Set via GitHub Secrets
+GITHUB_TOKEN = "" # Set via GitHub Secrets
+SLACK_BOT_TOKEN = "" # Set via GitHub Secrets
+ZAPIER_WEBHOOK = "" # Set via GitHub Secrets
+MONOBANK_TOKEN = "" # Set via GitHub Secrets
+
+# Cloudflare KV namespace bindings
+[[kv_namespaces]]
+binding = "CACHE"
+id = "CLOUDFLARE_KV_CACHE_ID"
+preview_id = "CLOUDFLARE_KV_CACHE_PREVIEW_ID"
+
+[[kv_namespaces]]
+binding = "STATE"
+id = "CLOUDFLARE_KV_STATE_ID"
+preview_id = "CLOUDFLARE_KV_STATE_PREVIEW_ID"
+
+# Cloudflare Durable Objects
+[[durable_objects.bindings]]
+name = "RateLimiter"
+class_name = "RateLimiter"
+script_name = "rate-limiter"
+
+# Analytics Engine
+[analytics]
+engine = "cloudflare"
+
+# Build configuration
+[build]
+command = "npm install && npm run build"
+cwd = "./src"
+
+# Triggers for scheduled tasks
+[[triggers.crons]]
+crons = ["0 0 * * *"] # Daily at midnight
+
+# API integration routes
+[[routes]]
+pattern = "api.bbbhhai.com/v1/*"
+zone_name = "bakhmach-business-hub.com"
+
+[[routes]]
+pattern = "*.bbbhhai.com/telegram/*"
+zone_name = "bakhmach-business-hub.com"
+
+[[routes]]
+pattern = "*.bbbhhai.com/webhooks/*"
+zone_name = "bakhmach-business-hub.com"
+
+# Custom handlers
+[observability]
+enabled = true
