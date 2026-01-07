@@ -1,0 +1,179 @@
+name: Bakhmach CI/CD Pipeline
+on:
+  push:
+    branches:
+      - main
+      - staging
+      - develop
+  pull_request:
+    branches:
+      - main
+      - staging
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+      - name: SonarQube SAST
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  build:
+    needs: security-scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+      - name: Run unit tests
+        run: pytest tests/unit/ --cov=. --cov-report=xml
+      - name: Run integration tests
+        run: pytest tests/integration/ --cov=. --cov-report=xml
+        env:
+          DATABASE_URL: postgresql://postgres:password@postgres:5432/test
+          REDIS_URL: redis://redis:6379/0
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+  deploy-staging:
+    if: github.ref == 'refs/heads/staging'
+    needs: [security-scan, build, test]
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.bakhmach.prod
+    steps:
+      - uses: actions/checkout@v3
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v3
+      - name: Deploy to staging
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_STAGING }}
+        run: |
+          echo $KUBE_CONFIG | base64 -d > kubeconfig
+          kubectl --kubeconfig kubeconfig apply -f k8s/
+          kubectl --kubeconfig kubeconfig rollout status deployment/auth-service -n bakhmach-prod
+      - name: Health check
+        run: |
+          curl -f https://staging.bakhmach.prod/health || exit 1
+  deploy-production:
+    if: github.ref == 'refs/heads/main'
+    needs: [security-scan, build, test]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://bakhmach.prod
+    steps:
+      - uses: actions/checkout@v3
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v3
+      - name: Deploy to production (canary)
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_PROD }}
+        run: |
+          echo $KUBE_CONFIG | base64 -d > kubeconfig
+          kubectl --kubeconfig kubeconfig apply -f k8s/
+          kubectl --kubeconfig kubeconfig set image deployment/auth-service auth-service=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} -n bakhmach-prod
+          kubectl --kubeconfig kubeconfig rollout status deployment/auth-service -n bakhmach-prod
+      - name: Wait for canary metrics
+        run: sleep 300
+      - name: Check canary health
+        run: |
+          ERROR_RATE=$(curl -s http://prometheus:9090/api/v1/query?query=rate%28http_requests_total%7Bstatus%3D%225xx%22%7D%5B5m%5D%29 | jq '.data.result[0].value[1]')
+          if [ $(echo "$ERROR_RATE > 0.05" | bc) -eq 1 ]; then
+            echo "Error rate above threshold, rolling back"
+            kubectl --kubeconfig kubeconfig rollout undo deployment/auth-service -n bakhmach-prod
+            exit 1
+          fi
+      - name: Promote to production
+        run: |
+          kubectl --kubeconfig kubeconfig set replicas deployment/auth-service=5 -n bakhmach-prod
+      - name: Notify Slack
+        if: always()
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "Bakhmach Production Deployment: ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Deployment Status*\n Status: ${{ job.status }}\n Commit: ${{ github.sha }}\n Author: ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
