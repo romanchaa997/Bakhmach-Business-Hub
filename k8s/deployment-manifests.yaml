@@ -1,0 +1,515 @@
+---
+# BAKHMACH-BUSINESS-HUB KUBERNETES MANIFESTS
+# Production-ready multi-tenant microservices deployment
+
+# Namespace for all services
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bakhmach-prod
+  labels:
+    name: bakhmach-prod
+    environment: production
+
+---
+# Auth Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: bakhmach-prod
+  labels:
+    app: auth-service
+    version: v1
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+        version: v1
+        context: all
+    spec:
+      serviceAccountName: auth-service
+      containers:
+      - name: auth-service
+        image: romanchaa997/bakhmach-auth:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: KEYCLOAK_URL
+          valueFrom:
+            configMapKeyRef:
+              name: auth-config
+              key: keycloak_url
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: auth-secrets
+              key: jwt_secret
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - auth-service
+              topologyKey: kubernetes.io/hostname
+
+---
+# Auth Service HorizontalPodAutoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: auth-service-hpa
+  namespace: bakhmach-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: auth-service
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+
+---
+# Bakhmach-Core Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bakhmach-core
+  namespace: bakhmach-prod
+  labels:
+    app: bakhmach-core
+    context: bakhmach-hub
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bakhmach-core
+  template:
+    metadata:
+      labels:
+        app: bakhmach-core
+        context: bakhmach-hub
+    spec:
+      serviceAccountName: bakhmach-core
+      containers:
+      - name: bakhmach-core
+        image: romanchaa997/bakhmach-core:1.0.0
+        ports:
+        - name: http
+          containerPort: 8001
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: postgres_url
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: cache-config
+              key: redis_url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: mq-secrets
+              key: rabbitmq_url
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "768Mi"
+            cpu: "750m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 40
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8001
+          initialDelaySeconds: 15
+          periodSeconds: 5
+
+---
+# Slon Finance Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slon-finance
+  namespace: bakhmach-prod
+  labels:
+    app: slon-finance
+    context: slon-credit
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: slon-finance
+  template:
+    metadata:
+      labels:
+        app: slon-finance
+        context: slon-credit
+    spec:
+      serviceAccountName: slon-finance
+      containers:
+      - name: slon-finance
+        image: romanchaa997/slon-finance:1.0.0
+        ports:
+        - name: http
+          containerPort: 8080
+        env:
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: postgres_url
+        - name: KAFKA_BROKERS
+          valueFrom:
+            configMapKeyRef:
+              name: messaging-config
+              key: kafka_brokers
+        resources:
+          requests:
+            memory: "768Mi"
+            cpu: "750m"
+          limits:
+            memory: "1.5Gi"
+            cpu: "1000m"
+
+---
+# Audityzer Audit Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audityzer-audit
+  namespace: bakhmach-prod
+  labels:
+    app: audityzer-audit
+    context: audityzer-eu
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: audityzer-audit
+  template:
+    metadata:
+      labels:
+        app: audityzer-audit
+        context: audityzer-eu
+    spec:
+      serviceAccountName: audityzer-audit
+      containers:
+      - name: audityzer-audit
+        image: romanchaa997/audityzer-audit:1.0.0
+        ports:
+        - name: http
+          containerPort: 3000
+        env:
+        - name: MONGODB_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: mongodb_url
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "300m"
+          limits:
+            memory: "512Mi"
+            cpu: "600m"
+
+---
+# AI/DebtDefenseAgent Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debt-agent-ai
+  namespace: bakhmach-prod
+  labels:
+    app: debt-agent-ai
+    context: debtdefenseagent
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: debt-agent-ai
+  template:
+    metadata:
+      labels:
+        app: debt-agent-ai
+        context: debtdefenseagent
+    spec:
+      serviceAccountName: debt-agent-ai
+      nodeSelector:
+        gpu: "true"
+      containers:
+      - name: debt-agent-ai
+        image: romanchaa997/debt-agent-ai:1.0.0
+        ports:
+        - name: http
+          containerPort: 8002
+        env:
+        - name: MODEL_PATH
+          value: "/models/v1"
+        - name: TF_CPP_MIN_LOG_LEVEL
+          value: "2"
+        resources:
+          requests:
+            memory: "1.5Gi"
+            cpu: "1500m"
+            nvidia.com/gpu: "1"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+            nvidia.com/gpu: "1"
+
+---
+# Trade Connector Service (Black Sea Economic Corridor)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trade-connector
+  namespace: bakhmach-prod
+  labels:
+    app: trade-connector
+    context: black-sea-corridor
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: trade-connector
+  template:
+    metadata:
+      labels:
+        app: trade-connector
+        context: black-sea-corridor
+    spec:
+      serviceAccountName: trade-connector
+      containers:
+      - name: trade-connector
+        image: romanchaa997/trade-connector:1.0.0
+        ports:
+        - name: http
+          containerPort: 8003
+        env:
+        - name: API_GATEWAY_URL
+          value: "http://api-gateway:8080"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "768Mi"
+            cpu: "750m"
+
+---
+# Infusion Processor Service (Cannabis Agricultural Processing)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: infusion-processor
+  namespace: bakhmach-prod
+  labels:
+    app: infusion-processor
+    context: cannabis-infusion
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: infusion-processor
+  template:
+    metadata:
+      labels:
+        app: infusion-processor
+        context: cannabis-infusion
+    spec:
+      serviceAccountName: infusion-processor
+      containers:
+      - name: infusion-processor
+        image: romanchaa997/infusion-processor:1.0.0
+        ports:
+        - name: http
+          containerPort: 8004
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "300m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+---
+# ConfigMap for Auth Service
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-config
+  namespace: bakhmach-prod
+data:
+  keycloak_url: "https://keycloak.bakhmach.prod:8443/auth"
+  jwt_algorithm: "RS256"
+  token_expiration: "3600"
+
+---
+# ConfigMap for Cache Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cache-config
+  namespace: bakhmach-prod
+data:
+  redis_url: "redis://redis-cluster:6379"
+  redis_ssl: "true"
+  cache_ttl: "3600"
+
+---
+# ConfigMap for Messaging
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: messaging-config
+  namespace: bakhmach-prod
+data:
+  kafka_brokers: "kafka-0.kafka-service:9092,kafka-1.kafka-service:9092,kafka-2.kafka-service:9092"
+  rabbitmq_host: "rabbitmq-cluster"
+  rabbitmq_port: "5672"
+
+---
+# NetworkPolicy for service mesh
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: bakhmach-network-policy
+  namespace: bakhmach-prod
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: bakhmach-prod
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: bakhmach-prod
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+  - ports:
+    - protocol: TCP
+      port: 443
+
+---
+# PodDisruptionBudget for auth-service
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-service-pdb
+  namespace: bakhmach-prod
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: auth-service
+
+---
+# ServiceMonitor for Prometheus scraping
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: bakhmach-services-monitor
+  namespace: bakhmach-prod
+spec:
+  selector:
+    matchLabels:
+      monitoring: enabled
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
