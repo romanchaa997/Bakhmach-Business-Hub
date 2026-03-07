@@ -1,5 +1,5 @@
 # Bakhmach Business Hub
-
+ 
 **Integrated Platform Cooperative & Social Enterprise** for holistic optimization across professional development, health, relationships, finances, and personal growth.
 
 🎯 Vision
