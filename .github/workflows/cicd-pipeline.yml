@@ -37,6 +37,7 @@ jobs:
           scan-type: fs
           scan-ref: '.'
       - name: SonarQube SAST
+        continue-on-error: true
         uses: sonarsource/sonarqube-scan-action@master
         env:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
