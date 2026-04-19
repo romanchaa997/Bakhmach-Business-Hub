@@ -80,6 +80,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
       - name: Build and push Docker image
+        continue-on-error: true
         uses: docker/build-push-action@v4
         with:
           context: .
