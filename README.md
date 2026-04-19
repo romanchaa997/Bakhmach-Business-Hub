@@ -91,4 +91,28 @@ This is a cooperative project. See `CONTRIBUTING.md` for guidelines.
 ----------
 GNU General Public License v3.0 - See `LICENSE` file for details.
 
+
+---
+
+## 🔐 AuditorSEC Integration
+
+Bakhmach / Zakar Business Hub integrates **AuditorSEC** as its security and compliance layer — an AI-assisted audit platform for crypto, defense and municipal infrastructures.
+
+**Technology Readiness Level: TRL-4** (April 2026)
+Deployed FastAPI microservice with PostgreSQL, Redis, MinIO.
+Live API: `/api/v1/audit` + `/api/v1/report`
+
+**Dual-use:** AuditorSEC is a dual-use security layer: the same audit engine that protects BRAVE1 defense systems also secures municipal IoT and fintech infrastructures, ensuring that public and donor funds are spent on resilient, corruption-resistant digital systems.
+
+**Ecosystem alignment:**
+- BRAVE1 Tier 3 application (UAH 2M, path to TRL-5)
+- EU4UA / USAID Anti-Corruption Facility integration
+- Municipal Sentinel IoT monitoring pilot (Bakhmach, Chernihiv Oblast)
+- Greencubator / climate adaptation track
+
+**GitHub:** [romanchaa997/auditorsec](https://github.com/romanchaa997/auditorsec)
+**Contact:** hello@auditorsec.com | @auditorsec
+
+*Built in Ukraine. For Ukrainian crypto and defense market. April 2026.*
+
 **Last Updated:** March 08, 2026 | **Status:** Growth Acceleration Phase | **Coordinator:** @romanchaa997
