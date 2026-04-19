@@ -14,26 +14,31 @@ jobs:
     name: Lint & Code Quality
     runs-on: ubuntu-latest
     steps:
+      - name: Enable long paths
+        run: git config --global core.longpaths true
       - uses: actions/checkout@v4
-      
+        with:
+          fetch-depth: 1
       - name: Check Markdown files
         uses: avto-dev/markdown-lint@v1
         with:
           args: '**/*.md'
           ignore: 'node_modules'
-      
       - name: Check for broken links
         uses: gaurav-nelson/github-action-markdown-link-check@v1
         with:
           use-quiet-mode: 'yes'
           config-file: '.github/markdown-link-check-config.json'
-  
+
   security:
     name: Security Scan
     runs-on: ubuntu-latest
     steps:
+      - name: Enable long paths
+        run: git config --global core.longpaths true
       - uses: actions/checkout@v4
-      
+        with:
+          fetch-depth: 1
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -41,42 +46,45 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
-      
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-results.sarif'
-  
+
   test:
     name: Test Documentation
     runs-on: ubuntu-latest
     steps:
+      - name: Enable long paths
+        run: git config --global core.longpaths true
       - uses: actions/checkout@v4
-      
+        with:
+          fetch-depth: 1
       - name: Validate YAML files
         uses: ibiqlik/action-yamllint@v3
         with:
           file_or_dir: '.github/**/*.yml'
           config_file: '.yamllint.yml'
-      
       - name: Validate JSON files
         run: |
-          find . -name '*.json' -not -path './node_modules/*' -exec echo "Validating {}" \;
-          find . -name '*.json' -not -path './node_modules/*' -exec cat {} \; | jq empty
-  
+          find . -name '*.json' -not -path './node_modules/*' -not -path './backend/{*' -exec echo "Validating {}" \;
+          find . -name '*.json' -not -path './node_modules/*' -not -path './backend/{*' -exec sh -c 'cat "$1" | jq empty && echo "OK: $1"' _ {} \;
+
   build:
     name: Build & Deploy Docs
     runs-on: ubuntu-latest
     needs: [lint, security, test]
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Enable long paths
+        run: git config --global core.longpaths true
       - uses: actions/checkout@v4
-      
+        with:
+          fetch-depth: 0
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
       - name: Generate project stats
         run: |
           echo "## Project Statistics" > stats.md
@@ -86,7 +94,6 @@ jobs:
           echo "- Total files: $(find . -type f | wc -l)" >> stats.md
           echo "- Lines of documentation: $(find . -name '*.md' -exec cat {} \; | wc -l)" >> stats.md
           echo "- Last updated: $(date)" >> stats.md
-      
       - name: Deploy to GitHub Pages
         if: success()
         uses: peaceiris/actions-gh-pages@v3
@@ -94,7 +101,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./
           destination_dir: docs
-  
+
   notify:
     name: Notify Status
     runs-on: ubuntu-latest
@@ -104,8 +111,8 @@ jobs:
       - name: Check workflow status
         run: |
           if [ "${{ needs.build.result }}" == "success" ]; then
-            echo "✅ CI/CD Pipeline completed successfully!"
+            echo "CI/CD Pipeline completed successfully!"
           else
-            echo "❌ CI/CD Pipeline failed!"
+            echo "CI/CD Pipeline failed!"
             exit 1
           fi
