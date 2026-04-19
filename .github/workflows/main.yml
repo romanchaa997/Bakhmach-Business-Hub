@@ -7,20 +7,26 @@ on:
   push:
     branches:
       - main
-      
+
 jobs:
   domain-health-check:
     runs-on: ubuntu-latest
     name: Domain Health Verification & Self-Healing
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+            frontend
+            docs
+            README.md
+          sparse-checkout-cone-mode: false
       - name: Verify Domain Health
         run: |
           echo 'Verifying bbbhhai.com CNAME and A records...'
           dig bbbhhai.com
           echo 'Domain verification completed'
-          
       - name: Verify auditorsec.com DNS
         run: |
           echo 'Verifying auditorsec.com A record...'
@@ -36,27 +42,38 @@ jobs:
         run: |
           echo 'Validating IPFS node connectivity...'
           echo 'Web3 architecture validation completed'
-          
+
   ipfs-sync:
     runs-on: ubuntu-latest
     name: IPFS and Web3 Synchronization
     needs: domain-health-check
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+            docs
+          sparse-checkout-cone-mode: false
       - name: Sync documentation to IPFS
         run: |
           echo 'Synchronizing docs/ to IPFS network...'
           echo 'Creating IPFS manifest for Web3 distribution...'
           echo 'IPFS sync completed'
-          
+
   autonomous-processes:
     runs-on: ubuntu-latest
     name: Autonomous Self-Organizing Processes
     needs: [domain-health-check, ipfs-sync]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+            frontend
+            docs
+          sparse-checkout-cone-mode: false
       - name: Execute Self-Healing Agents
         run: |
           echo 'Initializing autonomous healing agents...'
